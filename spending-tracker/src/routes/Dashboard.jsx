@@ -1,8 +1,10 @@
 import React from 'react';
-import { Box, Typography, Paper, useMediaQuery } from '@mui/material';
+import { Box, Typography, Paper, useMediaQuery, Button } from '@mui/material';
 import MonthlySpending from '../components/MonthlySpending';
+import ShareDialog from '../components/ShareDialog';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
+import ShareIcon from '@mui/icons-material/Share';
 
 export default function Dashboard({ year: propYear, month: propMonth }) {
   const theme = useTheme();
@@ -10,6 +12,8 @@ export default function Dashboard({ year: propYear, month: propMonth }) {
   const now = new Date();
   const [year] = useState(propYear || now.getFullYear());
   const [month] = useState(propMonth || now.getMonth() + 1);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
 
   return (
     <Box
@@ -36,13 +40,35 @@ export default function Dashboard({ year: propYear, month: propMonth }) {
         <Typography variant='h4' fontWeight={700} align='center' gutterBottom>
           Dashboard
         </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <Button
+            variant='outlined'
+            startIcon={<ShareIcon />}
+            onClick={() => setShareDialogOpen(true)}
+            size='small'
+          >
+            Share
+          </Button>
+        </Box>
         <Typography align='center' color='text.secondary' gutterBottom>
           Welcome! Here you will see your monthly spendings and manage your
           finances.
         </Typography>
         <Box sx={{ width: '100%', maxWidth: 700, mt: 2, mx: 'auto' }}>
-          <MonthlySpending year={year} month={month} />
+          <MonthlySpending
+            year={year}
+            month={month}
+            onDataChange={setDashboardData}
+          />
         </Box>
+
+        <ShareDialog
+          open={shareDialogOpen}
+          onClose={() => setShareDialogOpen(false)}
+          year={year}
+          month={month}
+          data={dashboardData}
+        />
       </Paper>
     </Box>
   );

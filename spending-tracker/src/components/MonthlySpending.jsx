@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -30,7 +30,7 @@ import NotesIcon from '@mui/icons-material/Notes';
 import { useTheme } from '@mui/material/styles';
 import useMonthlySpending from '../utils/useMonthlySpending';
 
-export default function MonthlySpending({ year, month }) {
+export default function MonthlySpending({ year, month, onDataChange }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { data, saveData, updateData, loading, error } = useMonthlySpending(
@@ -40,9 +40,6 @@ export default function MonthlySpending({ year, month }) {
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [editId, setEditId] = useState(null);
-  const [editName, setEditName] = useState('');
-  const [editAmount, setEditAmount] = useState('');
   const [partialDialogOpen, setPartialDialogOpen] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
   const [partialError, setPartialError] = useState('');
@@ -56,11 +53,29 @@ export default function MonthlySpending({ year, month }) {
   const [itemPartialError, setItemPartialError] = useState('');
   const [partialItemId, setPartialItemId] = useState(null);
 
+  const [editId, setEditId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+
   const spendings = data?.items || [];
-  const monthPaidStatus = data?.status || 'unpaid';
+  // Determine if any item is partially paid
+  const hasPartialPaid = spendings.some(
+    (item) => item.amountPaid > 0 && !item.paid
+  );
+  let monthPaidStatus = 'unpaid';
+  if (hasPartialPaid) monthPaidStatus = 'partial';
+  else if (spendings.length > 0 && spendings.every((item) => item.paid))
+    monthPaidStatus = 'paid';
   const total = spendings.reduce((sum, s) => sum + (s.amount || 0), 0);
   const paid = spendings.reduce((sum, s) => sum + (s.amountPaid || 0), 0);
   const unpaid = total - paid;
+
+  // Notify parent component when data changes
+  useEffect(() => {
+    if (onDataChange && data) {
+      onDataChange(data);
+    }
+  }, [data, onDataChange]);
 
   const handleAddSpending = (e) => {
     e.preventDefault();
@@ -269,9 +284,67 @@ export default function MonthlySpending({ year, month }) {
     setNoteText('');
   };
 
-  let tagColor = 'error';
-  if (monthPaidStatus === 'paid') tagColor = 'success';
-  else if (monthPaidStatus === 'partial') tagColor = 'warning';
+  // Helper to render action icons for an item
+  function renderActions(s) {
+    return (
+      <>
+        <Tooltip title={s.note ? 'Edit/View Note' : 'Add Note'}>
+          <IconButton
+            edge='end'
+            color='info'
+            onClick={() => handleOpenNoteDialog(s)}
+            disabled={loading}
+          >
+            <NoteAddIcon />
+          </IconButton>
+        </Tooltip>
+        {!s.paid && (
+          <>
+            <Tooltip title='Mark as Paid'>
+              <IconButton
+                edge='end'
+                color='success'
+                onClick={() => handleMarkPaid(s.id)}
+                disabled={loading}
+              >
+                <CheckCircleIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title='Partial Paid'>
+              <IconButton
+                edge='end'
+                color='warning'
+                onClick={() => handleOpenItemPartialDialog(s)}
+                disabled={loading}
+              >
+                <CheckCircleIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title='Edit'>
+              <IconButton
+                edge='end'
+                color='primary'
+                onClick={() => handleEdit(s)}
+                disabled={loading}
+              >
+                <EditIcon />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
+        <Tooltip title='Delete'>
+          <IconButton
+            edge='end'
+            color='error'
+            onClick={() => handleDelete(s.id)}
+            disabled={loading}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Tooltip>
+      </>
+    );
+  }
 
   return (
     <Paper
@@ -323,7 +396,13 @@ export default function MonthlySpending({ year, month }) {
               ? 'Partial Paid'
               : 'Unpaid'
           }
-          color={tagColor}
+          color={
+            monthPaidStatus === 'paid'
+              ? 'success'
+              : monthPaidStatus === 'partial'
+              ? 'warning'
+              : 'error'
+          }
           sx={{ fontWeight: 700, fontSize: 16 }}
         />
       </Box>
@@ -431,7 +510,11 @@ export default function MonthlySpending({ year, month }) {
                   Save
                 </Button>
                 <Button
-                  onClick={() => setEditId(null)}
+                  onClick={() => {
+                    setEditId(null);
+                    setEditName('');
+                    setEditAmount('');
+                  }}
                   size='small'
                   color='inherit'
                   variant='outlined'
@@ -443,29 +526,28 @@ export default function MonthlySpending({ year, month }) {
             ) : (
               <>
                 <ListItemText
-                  primary={<span style={{ fontWeight: 600 }}>{s.name}</span>}
-                  secondary={
-                    <>
-                      <span style={{ fontWeight: 500 }}>
-                        {s.amountPaid ? `$${s.amountPaid.toFixed(2)} / ` : ''}$
-                        {s.amount.toFixed(2)}
-                      </span>
-                      {s.paid && (
-                        <Chip
-                          label='Paid'
-                          color='success'
-                          size='small'
-                          sx={{ ml: 1 }}
-                        />
-                      )}
-                      {!s.paid && (s.amountPaid || 0) > 0 && (
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <span style={{ fontWeight: 600 }}>{s.name}</span>
+                      {s.paid ? (
+                        <Chip label='Paid' color='success' size='small' />
+                      ) : (s.amountPaid || 0) > 0 ? (
                         <Chip
                           label='Partial Paid'
                           color='warning'
                           size='small'
-                          sx={{ ml: 1 }}
                         />
+                      ) : (
+                        <Chip label='Unpaid' color='default' size='small' />
                       )}
+                    </Box>
+                  }
+                  secondary={
+                    <>
+                      <span style={{ fontWeight: 500 }}>
+                        {s.amountPaid ? `$${s.amountPaid.toFixed(2)} / ` : ''}
+                        {s.amount.toFixed(2)}
+                      </span>
                       {s.note && (
                         <Tooltip title={s.note}>
                           <NotesIcon
@@ -478,60 +560,7 @@ export default function MonthlySpending({ year, month }) {
                   }
                 />
                 <ListItemSecondaryAction>
-                  <Tooltip title={s.note ? 'Edit/View Note' : 'Add Note'}>
-                    <IconButton
-                      edge='end'
-                      color='info'
-                      onClick={() => handleOpenNoteDialog(s)}
-                      disabled={loading}
-                    >
-                      <NoteAddIcon />
-                    </IconButton>
-                  </Tooltip>
-                  {!s.paid && (
-                    <>
-                      <Tooltip title='Mark as Paid'>
-                        <IconButton
-                          edge='end'
-                          color='success'
-                          onClick={() => handleMarkPaid(s.id)}
-                          disabled={loading}
-                        >
-                          <CheckCircleIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title='Partial Paid'>
-                        <IconButton
-                          edge='end'
-                          color='warning'
-                          onClick={() => handleOpenItemPartialDialog(s)}
-                          disabled={loading}
-                        >
-                          <CheckCircleIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title='Edit'>
-                        <IconButton
-                          edge='end'
-                          color='primary'
-                          onClick={() => handleEdit(s)}
-                          disabled={loading}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </>
-                  )}
-                  <Tooltip title='Delete'>
-                    <IconButton
-                      edge='end'
-                      color='error'
-                      onClick={() => handleDelete(s.id)}
-                      disabled={loading}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Tooltip>
+                  {renderActions(s)}
                 </ListItemSecondaryAction>
               </>
             )}

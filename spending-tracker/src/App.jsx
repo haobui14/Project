@@ -9,6 +9,7 @@ import {
 import LoginPage from './routes/LoginPage';
 import Dashboard from './routes/Dashboard';
 import CalendarView from './routes/CalendarView';
+import SharedDashboard from './routes/SharedDashboard';
 import { auth } from './utils/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import NavBar from './components/NavBar';
@@ -71,6 +72,7 @@ export default function App() {
             path='/calendar'
             element={user ? <CalendarView /> : <Navigate to='/login' />}
           />
+          <Route path='/shared/:shareId' element={<SharedDashboard />} />
         </Routes>
       </Router>
     </ThemeProvider>
