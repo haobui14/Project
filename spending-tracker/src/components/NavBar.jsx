@@ -1,4 +1,4 @@
-import React from "react";
+import { useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -7,7 +7,6 @@ import {
   Box,
   Container,
   useMediaQuery,
-  Divider,
 } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DashboardIcon from "@mui/icons-material/Dashboard";
@@ -34,7 +33,7 @@ export default function NavBar({ mode, toggleMode }) {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleNav = (path) => {
     navigate(path);
@@ -156,7 +155,7 @@ export default function NavBar({ mode, toggleMode }) {
                     <ListItem disablePadding>
                       <ListItemButton
                         onClick={handleLogout}
-                        sx={{ 
+                        sx={{
                           color: "#ff4d4d",
                           mt: 1,
                           borderTop: 1,
